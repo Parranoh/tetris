@@ -143,9 +143,15 @@ void add_score(gamestate_t *state)
         }
 not_full_row: {}
     }
-    state->score += rows;
-    if (rows == 4)
-        state->score += 4;
+    size_t points = rows;
+    if (points >= 4)
+        points += 4;
+
+    // increase speed
+    if (state->score / 10 != (state->score + points) / 10)
+        --state->speed;
+
+    state->score += points;
 }
 
 void next_piece(gamestate_t *state)
@@ -262,10 +268,11 @@ int main(void)
         .game_over = 0,
         .tick_count = 0,
         .speed = INITIAL_SPEED,
-        .piece_index = 0,
-        .hold_piece_index = 8,
-        .next_piece_index = 2,
-        .piece_x = 3, .piece_y = 4, .piece_rot = 0,
+        .piece_index = rand() % 7,
+        .hold_piece_index = 7,
+        .next_piece_index = rand() % 7,
+        .piece_x = PLAY_AREA_WIDTH / 2 - 2,
+        .piece_y = 0, .piece_rot = 0,
         .score = 0,
         .play_area = { 0 }
     };
@@ -322,20 +329,27 @@ int main(void)
                     if (try_swap(&state))
                         need_redraw = 1;
                     break;
-                case ' ':
-                    next_piece(&state);
-                    need_redraw = 1;
-                    break;
                 default: {}
             }
         }
 
+        // tick
+        if (state.tick_count >= state.speed)
+        {
+            try_move(&state, 0, 1, 0);
+            need_redraw = 1;
+        }
+        else
+            ++state.tick_count;
+
         // draw
         if (need_redraw)
         {
-            // score
+            // score, speed
             snprintf(buf, 255, "Score: %ld", state.score);
             mvaddstr(0, 2 * PLAY_AREA_WIDTH + 2, buf);
+            snprintf(buf, 255, "Speed: %ld", INITIAL_SPEED - state.speed + 1);
+            mvaddstr(1, 2 * PLAY_AREA_WIDTH + 2, buf);
 
             // play area
             for (size_t y = 0; y < PLAY_AREA_HEIGHT; ++y)
@@ -347,14 +361,14 @@ int main(void)
 
             // current, next, hold
             draw_piece(state.piece_index, state.piece_x, state.piece_y, state.piece_rot, 0);
-            mvaddstr(2, 2 * PLAY_AREA_WIDTH + 2, "Hold:");
+            mvaddstr(3, 2 * PLAY_AREA_WIDTH + 2, "Hold:");
             if (state.hold_piece_index < NUM_TETROMINOS)
-                draw_piece(state.hold_piece_index, PLAY_AREA_WIDTH + 1, 3, 0, 1);
+                draw_piece(state.hold_piece_index, PLAY_AREA_WIDTH + 1, 4, 0, 1);
             else
-                for (size_t y = 3; y < 3 + 4; ++y)
+                for (size_t y = 4; y < 4 + 4; ++y)
                     mvaddstr(y, 2 * PLAY_AREA_WIDTH + 1, "        ");
-            mvaddstr(8, 2 * PLAY_AREA_WIDTH + 2, "Next:");
-            draw_piece(state.next_piece_index, PLAY_AREA_WIDTH + 1, 9, 0, 1);
+            mvaddstr(9, 2 * PLAY_AREA_WIDTH + 2, "Next:");
+            draw_piece(state.next_piece_index, PLAY_AREA_WIDTH + 1, 10, 0, 1);
 
             move(PLAY_AREA_HEIGHT - 1, 2 * PLAY_AREA_WIDTH);
 
